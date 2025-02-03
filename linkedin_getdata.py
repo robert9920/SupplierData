@@ -1,11 +1,37 @@
 import requests
-import pandas as pd
+from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 import time
+import random
+from stem import Signal
+from stem.control import Controller
+
+# Cambiar IP de Tor
+def renew_tor_ip():
+    try:
+        # Conectar al controlador de Tor
+        with Controller.from_port(port=9051) as controller:
+            # Autenticación por cookie (si está habilitada en torrc)
+            controller.authenticate()
+
+            # Enviar la señal para cambiar la IP
+            controller.signal(Signal.NEWNYM)
+
+            print("IP de Tor cambiada.")
+    except Exception as e:
+        print(f"Error al cambiar la IP de Tor: {e}")
+
 
 def obtener_datos_linkedin(nombreprov):
+
+    renew_tor_ip()
+
     # URL de Linkedin
     url = "https://www.linkedin.com/feed/"
 
@@ -13,11 +39,21 @@ def obtener_datos_linkedin(nombreprov):
     email = "drone123robert@outlook.com"
     password = "Greciatechpruebas123@"
 
+    # Configuración de opciones de Chrome
+    chrome_options = Options()
+    # Configurar Tor como proxy SOCKS
+    chrome_options.add_argument("--proxy-server=socks5://127.0.0.1:9150")
+    #chrome_options.add_argument("--headless")  # Ejecutar en modo sin cabeza (sin interfaz gráfica)
+    chrome_options.add_argument("--disable-blink-features=AutomationControlled")  # Evitar detección de automatización
+
     # Driver de Google Chrome
-    driver = webdriver.Firefox()
+    driver = webdriver.Chrome(options=chrome_options)
+
+    # Se accede a LinkedIn
     driver.maximize_window()
-    # Se accede a la página deseada
     driver.get(url)
+
+    time.sleep(3)
 
     ### Inicio de Sesión ###
     
@@ -31,7 +67,7 @@ def obtener_datos_linkedin(nombreprov):
     iniciar_sesion_button = driver.find_element(By.XPATH, value="//button[normalize-space()='Iniciar sesión']")
     iniciar_sesion_button.click()
 
-    time.sleep(1)
+    time.sleep(10)
 
     ### Búsqueda de Empresa ###
 
