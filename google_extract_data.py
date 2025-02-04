@@ -5,7 +5,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
 import time
-import deepseek
+import openai
 
 # Función para extraer todo el texto de las páginas webs 
 def extract_text(url):
@@ -136,41 +136,45 @@ def get_links_googleweb(provname):
     return links_web
 
 # Función final para extraer los datos de los links a evaluar
-def extract_data_links(provname, api_key):
-    # Inicializar la API de DeepSeek
-    ds = deepseek.DeepSeek(api_key)
+def extract_data_links(provname):
 
-    # Se obtienen 5 links de proveedores 
+    # API Key de cuenta de OpenAI
+    openai.api_key = "API_KEY"
+
+    # Obtener 5 enlaces de proveedores
     links_found = get_links_googleweb(provname)
 
-    # Se utilizan los links para obtener los textos respectivos
+    # Utilizar los enlaces para obtener los textos respectivos
     text_found = []
     for link in links_found:
         data_extracted = extract_text(link)
         if data_extracted:
             text_found.append(data_extracted)
 
-    # Enviar el prompt inicial solo para el primer texto
-    if text_found:
-        initial_prompt = f"Necesito recopilar información de empresas para enriquecer una base de datos de proveedores. Voy a estar enviándote textos pertenecientes a las páginas webs de las empresas, y debes buscar por la siguiente información: Ubicación de la empresa, datos de contacto (teléfonos, emails), redes sociales, productos y servicios ofrecidos, certificaciones, casos de éxito o clientes destacados, además de otra información destacable que consideres pertinente añadir. Cuando termine de enviarte todos los textos de las páginas web disponibles de la empresa, voy enviar la palabra “Finalizar”, una vez que te envíe esa palabra, tú debes de enviarme una tabla con toda la información recopilada. Importante, si en caso se detecta información contradictoria, igualmente indicar ambos datos en la tabla, y en una última fila agregar un comentario como observación. Debes de asegurarte de que los textos sean sobre la empresa deseada, ahora, la empresa objetivo es: {provname}.\n\n Empezamos con el primer texto: {text_found[0]}"
-        ds.send_prompt(initial_prompt)
+    # Preparar los mensajes para la API de OpenAI
+    messages = [
+        {"role": "system", "content": f"Necesito recopilar información de empresas para enriquecer una base de datos de proveedores. Voy a estar enviándote textos pertenecientes a las páginas webs de las empresas, y debes buscar por la siguiente información: Ubicación de la empresa, datos de contacto (teléfonos, emails), redes sociales, productos y servicios ofrecidos, certificaciones, casos de éxito o clientes destacados, además de otra información destacable que consideres pertinente añadir. Cuando termine de enviarte todos los textos de las páginas web disponibles de la empresa, voy a enviar la palabra 'Finalizar', una vez que te envíe esa palabra, tú debes de enviarme una tabla con toda la información recopilada. Importante, si en caso se detecta información contradictoria, igualmente indicar ambos datos en la tabla, y en una última fila agregar un comentario como observación. Debes de asegurarte de que los textos sean sobre la empresa deseada, ahora, la empresa objetivo es: {provname}."}
+    ]
 
-        # Enviar las noticias restantes sin el prompt inicial
-        if len(text_found) > 1:
-            for text in text_found[1:]:
-                ds.send_prompt(text)
+    # Añadir cada texto como un mensaje de usuario
+    for text in text_found:
+        messages.append({"role": "user", "content": text})
 
-        # Finalizar la evaluación
-        final_response = ds.send_prompt("Finalizar")
-        print(f"Evaluación final de DeepSeek: {final_response}")
-        return final_response
-    else:
-        print("No se encontraron links para evaluar.")
-        return None
+    # Añadir el mensaje de finalización
+    messages.append({"role": "user", "content": "Finalizar"})
+
+    # Llamar a la API de OpenAI
+    response = openai.ChatCompletion.create(
+        model="gpt-4",
+        messages=messages
+    )
+
+    # Obtener la respuesta del modelo
+    result = response['choices'][0]['message']['content']
+    print(result)
 
 
 if __name__ == "__main__":
     provname = input("Indicar nombre del proveedor para extrar datos de la web: ")
-    api_key = input("Indicar tu API Key de DeepSeek: ")
-    result = extract_data_links(provname, api_key)
+    result = extract_data_links(provname)
 
