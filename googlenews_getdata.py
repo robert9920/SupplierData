@@ -39,9 +39,13 @@ def extract_text(url):
         "https": "socks5h://127.0.0.1:9150",
     }
 
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+    }
+
     try:
         # Enviar una solicitud GET a través de Tor
-        response = requests.get(url, proxies=proxies)
+        response = requests.get(url, proxies=proxies, headers=headers)
         #response = requests.get(url)
 
         # Verificar si la solicitud fue exitosa
@@ -178,7 +182,7 @@ def get_links_googlenews(provname, n_news_max = 10):
     return(news_link)
 
 # Pruebas #################
-# links = get_data_googlenews("SERVICIOS GENERALES PARDO MIGUEL S.R.L")
+# links = get_links_googlenews("SGS")
 # for link in links:
 #     texto = extract_text(link)
 #     print(texto)

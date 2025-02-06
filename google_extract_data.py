@@ -299,7 +299,7 @@ def extract_data_links_DSOpen(provname):
         return False
 
 # Función para normalizar el output obtenido por la IA Gen
-def normalize_data_IA(output_text, provname):
+def normalize_data_IA_web(output_text, provname):
     try:
         # Diccionario donde se guardaran los datos
         data = {
@@ -352,7 +352,7 @@ def normalize_data_IA(output_text, provname):
 
 
 # Función para subir la data normalizada a una tabla en Postgresql
-def upload_key_data (key_data):
+def upload_key_data_web (key_data):
     
     engine = create_engine(f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}") # Conexión a Postgresql
 
@@ -374,7 +374,7 @@ def upload_key_data (key_data):
         print("No hay data normalizada para subir a PostgreSQL")
 
 # Función para exportar datos de tabla como csv
-def export_csv ():
+def export_csv_web ():
 
     engine = create_engine(f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}") # Conexión a Postgresql
 
@@ -382,17 +382,17 @@ def export_csv ():
     df = pd.read_sql(f"SELECT * FROM {table_name}", engine)
 
     # Guardar como CSV
-    df.to_csv("./PostgreSQL/datos_exportados.csv", index=True, encoding="utf-8-sig")
+    df.to_csv("./PostgreSQL/datos_exportados_web.csv", index=True, encoding="utf-8-sig")
 
-    print("✅ Exportación completada: datos_exportados.csv")
+    print("✅ Exportación completada: datos_exportados_web.csv")
 
 if __name__ == "__main__":
     provname = input("Indicar nombre del proveedor para extrar datos de la web: ")
     # Se obtiene la extracción de datos por la IA Gen
     result = extract_data_links_openAI(provname)
     # Se normalizan esos datos y se retorna un dataframe con los valores clave
-    key_data = normalize_data_IA(result, provname)
+    key_data = normalize_data_IA_web(result, provname)
     # Se suben esos datos a Postgresql
-    upload_key_data(key_data)
+    upload_key_data_web(key_data)
     # Exportación de datos
-    # export_csv()
+    # export_csv_web()
