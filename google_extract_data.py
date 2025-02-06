@@ -10,6 +10,8 @@ import openai
 from sqlalchemy import create_engine
 from sqlalchemy import text
 import pandas as pd
+import os
+from openai import OpenAI
 
 # Valores para conexión a Postgresql
 db_user = "postgres"
@@ -21,23 +23,21 @@ table_name = "googleweb_datos"
 
 # Función para extraer todo el texto de las páginas webs 
 def extract_text(url):
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+    }
+    
     try:
         # Enviar una solicitud GET
-        response = requests.get(url)
+        response = requests.get(url, headers=headers)
         # Verificar si la solicitud fue exitosa
         if response.status_code == 200:
-            # Obtener el contenido HTML
-            html_content = response.text
-
-            # Usar BeautifulSoup para analizar el HTML
-            soup = BeautifulSoup(html_content, "html.parser")
-
+            # Obtener el contenido HTML y usar BeautifulSoup para analizar el HTML
+            soup = BeautifulSoup(response.text, "html.parser")
             # Extraer y devolver solo el contenido de texto, ignorando las etiquetas HTML
-            text_content = soup.get_text(separator=" ", strip=True)
-
-            return text_content
+            return soup.get_text(separator=" ", strip=True)
         else:
-            print(f"Error al recuperar la página {url}. Código de estado: {response.status_code}")
+            print(f"Error {response.status_code}: Acceso denegado a {url}")
             return False
     except requests.exceptions.RequestException as e:
         print(f"Error de conexión: {e}")
@@ -81,7 +81,7 @@ def get_links_googleweb(provname):
     search_results = driver.find_elements(By.CSS_SELECTOR, "div.g")
   
     # Existen páginas que se van a ignorar en esta búsqueda
-    webs_ignore = ["linkedin", "universidadperu","facebook", "indeed", "bumeran","repositorio","ulima","glassdoor","bnamericas","aai"]
+    webs_ignore = ["computrabajo","twitter","pdf","linkedin", "universidadperu","facebook", "indeed", "bumeran","repositorio","ulima","glassdoor","bnamericas","aai"]
     n_web = 0 # Número de páginas web que se van considerando
 
     # Se itera sobre cada resultado obtenido
@@ -121,7 +121,7 @@ def get_links_googleweb(provname):
     search_results = driver.find_elements(By.CSS_SELECTOR, "div.g")
   
     # Existen páginas que se van a ignorar en esta búsqueda
-    webs_ignore = ["linkedin", "universidadperu","facebook", "indeed", "bumeran","repositorio","ulima","glassdoor","bnamericas","aai"]
+    webs_ignore = ["computrabajo","twitter","pdf","linkedin", "universidadperu","facebook", "indeed", "bumeran","repositorio","ulima","glassdoor","bnamericas","aai"]
 
     # Se itera sobre cada resultado obtenido
     for result in search_results:
@@ -150,8 +150,9 @@ def get_links_googleweb(provname):
 # Función final para extraer los datos de los links a evaluar - OpenAI
 def extract_data_links_openAI(provname):
 
-    # API Key de cuenta de OpenAI
-    openai.api_key = "API_KEY"
+    # Cliente de OpenAI
+    MODEL = "gpt-4o-mini"
+    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
     # Obtener 5 enlaces de proveedores
     links_found = get_links_googleweb(provname)
@@ -163,27 +164,43 @@ def extract_data_links_openAI(provname):
         if data_extracted:
             text_found.append(data_extracted)
 
-    # Preparar los mensajes para la API de OpenAI
-    messages = [
-        {"role": "system", "content": f"Necesito recopilar información de empresas para enriquecer una base de datos de proveedores. Voy a estar enviándote textos pertenecientes a las páginas webs de las empresas, y debes buscar por la siguiente información: Ubicación de la empresa, datos de contacto (teléfonos, emails), redes sociales, productos y servicios ofrecidos, certificaciones, casos de éxito o clientes destacados, además de otra información destacable que consideres pertinente añadir. Cuando termine de enviarte todos los textos de las páginas web disponibles de la empresa, voy a enviar la palabra 'Finalizar', una vez que te envíe esa palabra, tú debes de enviarme una tabla con toda la información recopilada. Importante, si en caso se detecta información contradictoria, igualmente indicar ambos datos en la tabla, y en una última fila agregar un comentario como observación. Entonces, tu resultado final debe ser una tabla con las siguientes filas (usar el nombre exacto de estos campos, sin tildes): 'Ubicacion', 'Datos de Contacto', 'Redes Sociales', 'Productos/Servicios', 'Certificaciones', 'Clientes/Casos de Exito', 'Otra Informacion', 'Observaciones/Contradicciones'. Debes de asegurarte de que los textos sean sobre la empresa deseada, ahora, la empresa objetivo es: {provname}."}
-    ]
+    if len(text_found) >= 1:
 
-    # Añadir cada texto como un mensaje de usuario
-    for text in text_found:
-        messages.append({"role": "user", "content": text})
+        # Preparar los mensajes para la API de OpenAI
+        messages = [
+            {"role": "system", "content": f"Necesito recopilar información de empresas para enriquecer una base de datos de proveedores. Voy a estar enviándote textos pertenecientes a las páginas webs de las empresas, y debes buscar por la siguiente información: Ubicación de la empresa, datos de contacto (teléfonos, emails), redes sociales, productos y servicios ofrecidos, certificaciones, casos de éxito o clientes destacados, además de otra información destacable que consideres pertinente añadir. Cuando termine de enviarte todos los textos de las páginas web disponibles de la empresa, voy a enviar la palabra 'Finalizar', una vez que te envíe esa palabra, tú debes de enviarme todos los datos recopilados en una sola linea, es decir, en una única linea solo se escriben los datos de un campo, en la siguiente linea todo el siguiente campo, no saltes de linea a menos que hayas terminado con toda la información del campo, y así hasta finalizar con todos los datos solicitados. Importante, si en caso se detecta información contradictoria, igualmente indicar ambos datos en la misma linea, y en una última linea agregar un comentario como observación. Entonces, tu resultado final debe ser un texto con diversas lineas, donde en una unica linea se encuentre todo el campo solicitado, y al inicio de cada linea colocar el nombre del campo correspondiente (usar el nombre exacto de estos campos, sin tildes y no poner en negrita ni añadir otro simbolo especial como '*'): 'Ubicacion', 'Datos de Contacto', 'Redes Sociales', 'Productos/Servicios', 'Certificaciones', 'Clientes/Casos de Exito', 'Otra Informacion', 'Observaciones/Contradicciones'. Debes de asegurarte de que los textos sean sobre la empresa deseada, ahora, la empresa objetivo es: {provname}."}
+        ]
 
-    # Añadir el mensaje de finalización
-    messages.append({"role": "user", "content": "Finalizar"})
+        # Añadir cada texto como un mensaje de usuario
+        for text in text_found:
+            messages.append({"role": "user", "content": text})
 
-    # Llamar a la API de OpenAI
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=messages
-    )
+        # Añadir el mensaje de finalización
+        messages.append({"role": "user", "content": "Finalizar"})
 
-    # Obtener la respuesta del modelo
-    result = response['choices'][0]['message']['content']
-    print(result)
+        try:
+            # Llamar a la API de OpenAI
+            response = client.chat.completions.create(
+                model= MODEL,
+                messages = messages
+            )
+            
+            # Obtener la respuesta del modelo
+            result = response.choices[0].message.content
+            print(result)
+            return result
+
+        except json.decoder.JSONDecodeError as e:
+            print(f"Error al decodificar la respuesta JSON: {e}")
+            return False
+        
+        except Exception as e: # Cuando se envian muchos tokens como input, dependiendo del modelo, podría dar error
+            print(f"Error inesperado: {e}")
+            return False
+
+    else:
+        print("No se encontró data disponible de la empresa")
+        return False
 
 # Función final para extraer los datos de los links a evaluar - DeepSeek
 def extract_data_links_DS(provname):
@@ -302,22 +319,26 @@ def normalize_data_IA(output_text, provname):
 
         # Iterar sobre cada linea para extraer los datos
         for line in lines:
-            if 'Ubicacion:' in line:
-                data['ubicacion'] = line.split('Ubicacion:')[1].strip()
-            elif 'Datos de Contacto:' in line:
-                data['datos_contacto'] = line.split('Datos de Contacto:')[1].strip()
-            elif 'Redes Sociales:' in line:
-                data['redes_sociales'] = line.split('Redes Sociales:')[1].strip()
-            elif 'Productos/Servicios:' in line:
-                data['productos_servicios'] = line.split('Productos/Servicios:')[1].strip()
-            elif 'Certificaciones:' in line:
-                data['certificaciones'] = line.split('Certificaciones:')[1].strip()
-            elif 'Clientes/Casos de Exito:' in line:
-                data['clientes_casos_exito'] = line.split('Clientes/Casos de Exito:')[1].strip()
-            elif 'Otra Informacion:' in line:
-                data['otra_informacion'] = line.split('Otra Informacion:')[1].strip()
-            elif 'Observaciones/Contradicciones:' in line:
-                data['observaciones_contradicciones'] = line.split('Observaciones/Contradicciones:')[1].strip()
+            try:
+                line = line.replace(":","")
+            except:
+                pass
+            if 'Ubicacion' in line:
+                data['ubicacion'] = line.split('Ubicacion')[1].strip()
+            elif 'Datos de Contacto' in line:
+                data['datos_contacto'] = line.split('Datos de Contacto')[1].strip()
+            elif 'Redes Sociales' in line:
+                data['redes_sociales'] = line.split('Redes Sociales')[1].strip()
+            elif 'Productos/Servicios' in line:
+                data['productos_servicios'] = line.split('Productos/Servicios')[1].strip()
+            elif 'Certificaciones' in line:
+                data['certificaciones'] = line.split('Certificaciones')[1].strip()
+            elif 'Clientes/Casos de Exito' in line:
+                data['clientes_casos_exito'] = line.split('Clientes/Casos de Exito')[1].strip()
+            elif 'Otra Informacion' in line:
+                data['otra_informacion'] = line.split('Otra Informacion')[1].strip()
+            elif 'Observaciones/Contradicciones' in line:
+                data['observaciones_contradicciones'] = line.split('Observaciones/Contradicciones')[1].strip()
 
         # Convertir diccionario a un dataframe
         df = pd.DataFrame([data])
@@ -352,12 +373,26 @@ def upload_key_data (key_data):
     else:
         print("No hay data normalizada para subir a PostgreSQL")
 
+# Función para exportar datos de tabla como csv
+def export_csv ():
+
+    engine = create_engine(f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}") # Conexión a Postgresql
+
+    # Leer la tabla en un DataFrame
+    df = pd.read_sql(f"SELECT * FROM {table_name}", engine)
+
+    # Guardar como CSV
+    df.to_csv("./PostgreSQL/datos_exportados.csv", index=True, encoding="utf-8-sig")
+
+    print("✅ Exportación completada: datos_exportados.csv")
 
 if __name__ == "__main__":
     provname = input("Indicar nombre del proveedor para extrar datos de la web: ")
     # Se obtiene la extracción de datos por la IA Gen
-    result = extract_data_links_DSOpen(provname)
+    result = extract_data_links_openAI(provname)
     # Se normalizan esos datos y se retorna un dataframe con los valores clave
     key_data = normalize_data_IA(result, provname)
     # Se suben esos datos a Postgresql
     upload_key_data(key_data)
+    # Exportación de datos
+    # export_csv()
