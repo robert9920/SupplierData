@@ -25,6 +25,11 @@ def evaluate_news(provname):
     # Se obtienen los links de todas las noticias encontradas del proveedor a evaluar
     links_found = get_links_googlenews(provname)
 
+    # Verificamos si no hubo error en el proceso de web scrapping
+    if links_found == None:
+        print("Hubo un error en el proceso de web scrapping al intentar ubicar las noticias")
+        return False
+
     if len(links_found) >= 1:
         # Se utilizan los links para obtener el texto de cada noticia
         text_found = []

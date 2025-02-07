@@ -128,6 +128,7 @@ df = leer_datos(nombre_BD, n_row, sheet_name)
 
 # Datos columnas
 # Se solicitan los numeros de columnas de los valores a verificar
+print("Escriba el número 999 si no se encuentra el dato solicitado")
 n_razonsocial = int(input("Escriba el número de la columna donde se encuentra los datos de la Razón Social: ")) 
 n_name = int(input("Escriba el número de la columna donde se encuentra los datos de Nombre: ")) 
 n_lastname = int(input("Escriba el número de la columna donde se encuentran los datos del Apellido: ")) 
@@ -194,29 +195,41 @@ for index, row in df.iterrows():
             error_message = "RUC no se encontró en la base de datos"
             errors.append(error_message)
 
-    # Validar / formatear "Nombre"
-    name_valid, name_error_corrected = format_name(row[n_name-1])
-    if  name_valid:
-        df.iloc[index, n_name-1] = name_error_corrected
+    if n_name != 999:
+        # Validar / formatear "Nombre"
+        name_valid, name_error_corrected = format_name(row[n_name-1])
+        if  name_valid:
+            df.iloc[index, n_name-1] = name_error_corrected
+        else:
+            errors.append(name_error_corrected)
     else:
-        errors.append(name_error_corrected)
+        pass
 
-    # Validar / formatear "Apellido"
-    lastname_valid, lastname_error_corrected = format_name(row[n_lastname-1])
-    if  lastname_valid:
-        df.iloc[index, n_lastname-1] = lastname_error_corrected
+    if n_lastname != 999:
+        # Validar / formatear "Apellido"
+        lastname_valid, lastname_error_corrected = format_name(row[n_lastname-1])
+        if  lastname_valid:
+            df.iloc[index, n_lastname-1] = lastname_error_corrected
+        else:
+            errors.append(lastname_error_corrected)
     else:
-        errors.append(lastname_error_corrected)
+        pass
 
-    # Validar "E-mail"
-    email_valid, email_error = validate_email(row[n_email-1])
-    if not email_valid:
-        errors.append(email_error)
+    if n_email != 999:
+        # Validar "E-mail"
+        email_valid, email_error = validate_email(row[n_email-1])
+        if not email_valid:
+            errors.append(email_error)
+    else:
+        pass
 
-    # Validar "Teléfono"
-    phone_valid, phone_error = validate_phone(row[n_phone-1])
-    if not phone_valid:
-        errors.append(phone_error)
+    if n_phone != 999:
+        # Validar "Teléfono"
+        phone_valid, phone_error = validate_phone(row[n_phone-1])
+        if not phone_valid:
+            errors.append(phone_error)
+    else:
+        pass
 
     # Validar "Número de identificación (RUC)"
     id_valid, id_error = validate_id_number(row[n_ruc-1])
