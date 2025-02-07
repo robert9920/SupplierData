@@ -22,7 +22,7 @@ db_name = "padron_ruc"
 table_name = "googleweb_datos"
 
 # Función para extraer todo el texto de las páginas webs 
-def extract_text(url):
+def extract_text_web(url):
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
     }
@@ -81,7 +81,7 @@ def get_links_googleweb(provname):
     search_results = driver.find_elements(By.CSS_SELECTOR, "div.g")
   
     # Existen páginas que se van a ignorar en esta búsqueda
-    webs_ignore = ["computrabajo","twitter","pdf","linkedin", "universidadperu","facebook", "indeed", "bumeran","repositorio","ulima","glassdoor","bnamericas","aai"]
+    webs_ignore = ["PDF","youtube","tripadvisor","datosperu","xlsx","xls","computrabajo","twitter","pdf","linkedin", "universidadperu","facebook", "indeed", "bumeran","repositorio","ulima","glassdoor","bnamericas","aai"]
     n_web = 0 # Número de páginas web que se van considerando
 
     # Se itera sobre cada resultado obtenido
@@ -121,7 +121,7 @@ def get_links_googleweb(provname):
     search_results = driver.find_elements(By.CSS_SELECTOR, "div.g")
   
     # Existen páginas que se van a ignorar en esta búsqueda
-    webs_ignore = ["computrabajo","twitter","pdf","linkedin", "universidadperu","facebook", "indeed", "bumeran","repositorio","ulima","glassdoor","bnamericas","aai"]
+    webs_ignore = ["PDF","youtube","tripadvisor","datosperu","xlsx","xls","computrabajo","twitter","pdf","linkedin", "universidadperu","facebook", "indeed", "bumeran","repositorio","ulima","glassdoor","bnamericas","aai"]
 
     # Se itera sobre cada resultado obtenido
     for result in search_results:
@@ -160,7 +160,7 @@ def extract_data_links_openAI(provname):
     # Utilizar los enlaces para obtener los textos respectivos
     text_found = []
     for link in links_found:
-        data_extracted = extract_text(link)
+        data_extracted = extract_text_web(link)
         if data_extracted:
             text_found.append(data_extracted)
 
@@ -214,7 +214,7 @@ def extract_data_links_DS(provname):
     # Utilizar los enlaces para obtener los textos respectivos
     text_found = []
     for link in links_found:
-        data_extracted = extract_text(link)
+        data_extracted = extract_text_web(link)
         if data_extracted:
             text_found.append(data_extracted)
 
@@ -258,7 +258,7 @@ def extract_data_links_DSOpen(provname):
     # Utilizar los enlaces para obtener los textos respectivos
     text_found = []
     for link in links_found:
-        data_extracted = extract_text(link)
+        data_extracted = extract_text_web(link)
         if data_extracted:
             text_found.append(data_extracted)
 
@@ -394,5 +394,5 @@ if __name__ == "__main__":
     key_data = normalize_data_IA_web(result, provname)
     # Se suben esos datos a Postgresql
     upload_key_data_web(key_data)
-    # Exportación de datos
+    # # Exportación de datos
     # export_csv_web()
