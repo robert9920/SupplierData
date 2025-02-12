@@ -22,7 +22,7 @@ table_name_sunat = "sunat_ruc" # tabla donde se encuentran datos genéricos
 
 # Lectura de datos
 def read_data(BD_name, n_row, sheet_name):
-    file_path = "../BDProv/" + BD_name # Ruta base de datos
+    file_path = "./BD_corregidas/" + BD_name # Ruta base de datos
     print(file_path)
     try:
         if file_path.endswith('.csv'):
@@ -88,8 +88,8 @@ if __name__ == "__main__":
                     result = connection.execute(query).fetchone()
                     if not result:
                         # Proceso para datos google news
-                        result_news = evaluate_news(provname) # Se extrae data de la web del proveedor y ChatGPT la ordena por campos
-                        key_data_news = normalize_data_IA_news(result_news, provname) # Se normaliza la data provista por ChatGPT y se retorna un df con los valores clave
+                        result_news, links_used = evaluate_news(provname) # Se extrae data de la web del proveedor y ChatGPT la ordena por campos
+                        key_data_news = normalize_data_IA_news(result_news, provname, links_used) # Se normaliza la data provista por ChatGPT y se retorna un df con los valores clave
                         upload_key_data_news(key_data_news) # Se suben datos de la web a PostgreSQL
                     else:
                         print(f"Ya se tiene información sobre {provname} en tabla de google news")
@@ -113,8 +113,8 @@ if __name__ == "__main__":
                     result = connection.execute(query).fetchone()
                     if not result:
                         # Proceso para datos google news
-                        result_news = evaluate_news(provname) # Se extrae data de la web del proveedor y ChatGPT la ordena por campos
-                        key_data_news = normalize_data_IA_news(result_news, provname) # Se normaliza la data provista por ChatGPT y se retorna un df con los valores clave
+                        result_news, links_used = evaluate_news(provname) # Se extrae data de la web del proveedor y ChatGPT la ordena por campos
+                        key_data_news = normalize_data_IA_news(result_news, provname, links_used) # Se normaliza la data provista por ChatGPT y se retorna un df con los valores clave
                         upload_key_data_news(key_data_news) # Se suben datos de la web a PostgreSQL
                     else:
                         print(f"Ya se tiene información sobre {provname} en tabla de google news")

@@ -6,6 +6,7 @@ import pandas as pd
 import os
 from openai import OpenAI
 import json
+from datetime import date
 
 # Valores para conexión a Postgresql
 db_user = "postgres"
@@ -27,16 +28,18 @@ def evaluate_news(provname):
 
     # Verificamos si no hubo error en el proceso de web scrapping
     if links_found == None:
-        print("Hubo un error en el proceso de web scrapping al intentar ubicar las noticias")
-        return False
+        print(f"Hubo un error en el proceso de web scrapping al intentar ubicar las noticias de {provname}")
+        return False, False
 
     if len(links_found) >= 1:
         # Se utilizan los links para obtener el texto de cada noticia
-        text_found = []
+        text_found = [] # Texto encontrado en los links
+        links_used = [] # Links donde realmente se pudo extraer el texto
         for link in links_found:
             data_extracted = extract_text(link)
             if data_extracted:
                 text_found.append(data_extracted)
+                links_used.append(link)
 
         # Verificamos que por lo menos haya 1 texto disponible para evaluar
         if len(text_found) >= 1:
@@ -63,15 +66,15 @@ def evaluate_news(provname):
                 # Obtener la respuesta del modelo
                 result = response.choices[0].message.content
                 print(result)
-                return result
+                return result, links_used
 
             except json.decoder.JSONDecodeError as e:
                 print(f"Error al decodificar la respuesta JSON: {e}")
-                return False
+                return False, False
         
             except Exception as e: # Cuando se envian muchos tokens como input, dependiendo del modelo, podría dar error
                 print(f"Error inesperado: {e}")
-                return False
+                return False, False
 
         else:
             print("No se encontraron texto de noticias para evaluar")
@@ -82,8 +85,13 @@ def evaluate_news(provname):
         return ("Eventos Corporativos: 0\nCambios en la direccion: 0\nExpansion/reduccion: 0\nProblemas legales: 0\nSanciones/cumplimiento: 0\nInnovaciones/lanzamientos: 0\nSituacion financiera: 0\nImpacto Reputacion: 0\nComentarios: No se encontró información para evaluar al proveedor")
     
 # Función para normalizar el output obtenido por la IA Gen
-def normalize_data_IA_news(output_text, provname):
+def normalize_data_IA_news(output_text, provname, links_used):
     try:
+
+        # Se obtiene la fecha actual que también será guardada en la tabla de evaluación de noticias
+        actual_date = date.today()
+        date_format = actual_date.strftime("%d/%m/%Y")
+
         # Diccionario donde se guardaran los datos
         data = {
             'proveedor': provname,
@@ -95,7 +103,9 @@ def normalize_data_IA_news(output_text, provname):
             'innovaciones_lanzamientos': '',
             'situacion_financiera': '',
             'impacto_reputacion': '',
-            'comentarios': ''
+            'comentarios': '',
+            'links_usados_news': links_used,
+            'fecha_news': date_format
         }
             
         # Dividir el texto en lineas
@@ -175,9 +185,9 @@ def export_csv_news ():
 if __name__ == "__main__":
     provname = input("Indicar nombre del proveedor a evaluar: ")
     # Se evaluan los textos de las noticias obtenidas por webscrapping
-    result = evaluate_news(provname) 
+    result, links_used = evaluate_news(provname) 
     # Se normalizan esos datos y se retorna un dataframe con los valores evaluados
-    key_data = normalize_data_IA_news(result, provname)
+    key_data = normalize_data_IA_news(result, provname, links_used)
     # Se suben esos datos a Postgresql
     upload_key_data_news(key_data)
     # # Exportación de datos

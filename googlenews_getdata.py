@@ -12,6 +12,16 @@ import random
 from stem import Signal
 from stem.control import Controller
 
+# Configuración del proxy SOCKS de Tor
+proxies = {
+    "http": "socks5h://127.0.0.1:9150",  # Usar 'socks5h' para resolver DNS a través de Tor
+    "https": "socks5h://127.0.0.1:9150",
+}
+
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+}
+
 # Cambiar IP de Tor
 def renew_tor_ip():
     try:
@@ -32,16 +42,6 @@ def renew_tor_ip():
 def extract_text(url):
 
     renew_tor_ip()
-
-    # Configurar el proxy SOCKS de Tor
-    proxies = {
-        "http": "socks5h://127.0.0.1:9150",  # Usar 'socks5h' para resolver DNS a través de Tor
-        "https": "socks5h://127.0.0.1:9150",
-    }
-
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
-    }
 
     try:
         # Enviar una solicitud GET a través de Tor
@@ -103,18 +103,26 @@ def get_links_googlenews(provname, n_news_max = 10):
     except:
         pass
 
-    time.sleep(3)
+    time.sleep(4)
 
     # Se imprime el nombre del proveedor en la barra de búsqueda de Google News
-    prov_field = driver.find_element(By.XPATH, value="//input[@aria-label='Busca temas, ubicaciones y fuentes']")
-    prov_field.send_keys(provname)
-    prov_field.send_keys(Keys.RETURN)
+    try:
+        prov_field = driver.find_element(By.XPATH, value="//input[@aria-label='Busca temas, ubicaciones y fuentes']")
+        prov_field.send_keys(provname)
+        prov_field.send_keys(Keys.RETURN)
+    except:
+        print(f"Error al intentar ubicar barra de búsqueda de noticias de {provname}")
+        return (None)
 
     time.sleep(4)
 
-    # Se buscan las noticias obtenidas
-    container_news = driver.find_element(By.CLASS_NAME, value = "UW0SDc")
-    news_found = container_news.find_elements(By.CLASS_NAME, value = "JtKRv")
+    try:
+        # Se buscan las noticias obtenidas
+        container_news = driver.find_element(By.CLASS_NAME, value = "UW0SDc")
+        news_found = container_news.find_elements(By.CLASS_NAME, value = "JtKRv")
+    except:
+        print(f"Error al intentar ubicar las noticias de {provname}")
+        return (None)
 
     # Se crea una lista para almacenar los links encontrados
     news_link = list()
@@ -128,9 +136,6 @@ def get_links_googlenews(provname, n_news_max = 10):
     for new in news_found:
 
         try:
-            # Se encontró 1 nuevo link
-            links_found = links_found + 1
-
             # Desplazarse al elemento y hacer click
             actions = ActionChains(driver)
             actions.move_to_element(new).click().perform()
@@ -156,8 +161,17 @@ def get_links_googlenews(provname, n_news_max = 10):
             except:
                 pass
 
-            # Se obtiene el link de la noticia
-            news_link.append(driver.current_url) 
+            # Enviar una solicitud GET a través de Tor para verificar si el link es valido
+            response = requests.get(driver.current_url, proxies=proxies, headers=headers)
+
+            # Verificar si la solicitud fue exitosa
+            if response.status_code == 200:
+                # Se guarda el link de la noticia
+                news_link.append(driver.current_url)
+                # Se encontró 1 nuevo link
+                links_found = links_found + 1
+            else:
+                pass # No se guarda el link ya que la solicitud no fue exitosa 
 
             # Se cierra la nueva pestaña
             driver.close() 
