@@ -13,7 +13,7 @@ db_user = "postgres"
 db_password = "greciatech"
 db_host = "127.0.0.1"
 db_port = "5432"
-db_name = "padron_ruc"
+db_name = "ProvData"
 table_name = "googlenews_evaluation"
 
 # Función para evaluar las noticias obtenida por cada proveedor

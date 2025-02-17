@@ -2,13 +2,13 @@ import pandas as pd
 from sqlalchemy import create_engine
 from sqlalchemy import text
 import unicodedata
-
+# Link: https://www.iadb.org/es/quienes-somos/transparencia/sistema-de-sanciones/empresas-e-individuos-sancionados
 # Valores para conexión a Postgresql
 db_user = "postgres"
 db_password = "greciatech"
 db_host = "127.0.0.1"
 db_port = "5432"
-db_name = "padron_ruc"
+db_name = "ProvData"
 table_name = "bid_completo"
 
 # Función para eliminar tildes de palabras en mayúsculas
