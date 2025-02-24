@@ -5,6 +5,9 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+#from selenium.webdriver.chrome.service import Service
 import time
 import openai
 from sqlalchemy import create_engine
@@ -14,11 +17,11 @@ import os
 from openai import OpenAI
 
 # Valores para conexión a Postgresql
-db_user = "postgres"
-db_password = "greciatech"
-db_host = "127.0.0.1"
+db_user = "provdata_user"
+db_password = os.getenv("db_password")
+db_host = "dpg-cupo701u0jms73bq5ng0-a.virginia-postgres.render.com"
 db_port = "5432"
-db_name = "ProvData"
+db_name = "provdata_db"
 table_name = "googleweb_datos"
 
 headers = {
@@ -54,30 +57,43 @@ def get_links_googleweb(provname):
 
     # Configuración de opciones de Chrome
     chrome_options = Options()
-    #chrome_options.add_argument("--headless")  # Ejecutar en modo sin cabeza (sin interfaz gráfica)
-    chrome_options.add_argument("--disable-blink-features=AutomationControlled")  # Evitar detección de automatización
-
+    chrome_options.add_argument("--headless")  # Ejecutar en modo sin interfaz gráfica
+    chrome_options.add_argument("--incognito")  # Modo incógnito
+    chrome_options.add_argument("--disable-dev-shm-usage")  # Evita problemas con la memoria compartida
+    chrome_options.add_argument("--no-sandbox")  # Evita restricciones de seguridad
+    # chrome_options.add_argument("--disable-gpu")  # Deshabilita la aceleración de hardware (recomendado en entornos sin UI)
+    # chrome_options.add_argument("--remote-debugging-port=9222")  # Permite debugging
+    chrome_options.add_argument("--disable-software-rasterizer")  # Evita problemas de renderizado
+    chrome_options.add_argument("--disable-blink-features=AutomationControlled")  # Oculta la automatización de Selenium
+    chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36") # Forzar versión web de página
+    
     # Driver de Google Chrome
+    #service = Service("/usr/local/bin/chromedriver")
     driver = webdriver.Chrome(options=chrome_options)
 
     # Se accede a Google Web
-    driver.maximize_window()
+    #driver.maximize_window()
     driver.get(url)
 
-    time.sleep(2)
+    time.sleep(3)
 
     ##### Primera busqueda ###########
     ## Keyword: Nombre del proveedor
     ## Se extraen 3 resultados de esta búsqueda
 
     # Se imprime el nombre del proveedor en la barra de búsqueda de Google Web
-    prov_field = driver.find_element(By.XPATH, value="//textarea[@id='APjFqb']")
+    #prov_field = driver.find_element(By.XPATH, value="//textarea[@id='APjFqb']")
+    # prov_field = WebDriverWait(driver, 20).until(
+    # EC.presence_of_element_located((By.NAME, "q"))
+    # )
+    prov_field = driver.find_element(By.NAME, value="q")
     prov_field.send_keys(provname)
     prov_field.send_keys(Keys.RETURN)
 
     time.sleep(2) # Tiempo de espera
 
     # Se buscan las páginas web obtenidas
+    #search_results = driver.find_elements(By.XPATH, value = "//div[@class='tF2Cxc']")
     search_results = driver.find_elements(By.CSS_SELECTOR, "div.g")
   
     # Existen páginas que se van a ignorar en esta búsqueda
@@ -105,7 +121,7 @@ def get_links_googleweb(provname):
                     else:
                         links_web.append(link) # Si no pertenecen, se agregan
                         n_web = n_web + 1
-                        print(f"Title: {title}\nLink: {link}\n")
+                        # print(f"Title: {title}\nLink: {link}\n")
 
             if n_web == 3: # Se consideran 3 páginas web para esta búsqueda
                 break
@@ -116,8 +132,7 @@ def get_links_googleweb(provname):
     ## Keyword: Nombre del proveedor + "contacto"
     ## Se extraen 2 resultados de esta búsqueda
     # Se imprime el nombre del proveedor más la palabra "contacto" en la barra de búsqueda de Google Web
-
-    prov_field = driver.find_element(By.XPATH, value="//textarea[@id='APjFqb']")
+    prov_field = driver.find_element(By.NAME, value="q")
     prov_field.send_keys(" contacto")
     prov_field.send_keys(Keys.RETURN)
 
@@ -125,7 +140,6 @@ def get_links_googleweb(provname):
 
     # Se buscan las páginas web obtenidas
     search_results = driver.find_elements(By.CSS_SELECTOR, "div.g")
-  
     # Existen páginas que se van a ignorar en esta búsqueda
     webs_ignore = ["PDF","youtube","tripadvisor","datosperu","xlsx","xls","computrabajo","twitter","pdf","linkedin", "universidadperu","facebook", "indeed", "bumeran","repositorio","ulima","glassdoor","bnamericas","aai"]
 
@@ -150,13 +164,13 @@ def get_links_googleweb(provname):
                     else:
                         links_web.append(link) # Si no pertenecen, se agregan
                         n_web = n_web + 1
-                        print(f"Title: {title}\nLink: {link}\n")
+                        # print(f"Title: {title}\nLink: {link}\n")
 
             if n_web == 5: # Se consideran 3 páginas web para esta búsqueda
                 break
         except:
             print(f"No se pudo evaluar link de proveedor {provname}")
-
+    print(links_web)
     return links_web
 
 # Función final para extraer los datos de los links a evaluar - OpenAI
@@ -164,7 +178,7 @@ def extract_data_links_openAI(provname):
 
     # Cliente de OpenAI
     MODEL = "gpt-4o-mini"
-    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     # Obtener 5 enlaces de proveedores
     links_found = get_links_googleweb(provname)
@@ -199,19 +213,19 @@ def extract_data_links_openAI(provname):
             
             # Obtener la respuesta del modelo
             result = response.choices[0].message.content
-            print(result)
+            #print(result)
             return result
 
         except json.decoder.JSONDecodeError as e:
-            print(f"Error al decodificar la respuesta JSON: {e}")
+            print(f"Error al decodificar la respuesta JSON de la empresa {provname}: {e}")
             return False
         
         except Exception as e: # Cuando se envian muchos tokens como input, dependiendo del modelo, podría dar error
-            print(f"Error inesperado: {e}")
+            print(f"Error inesperado de la empresa {provname}: {e}")
             return False
 
     else:
-        print("No se encontró data disponible de la empresa")
+        print(f"No se encontró data disponible de la empresa {provname}")
         return False
 
 # Función final para extraer los datos de los links a evaluar - DeepSeek
@@ -255,59 +269,6 @@ def extract_data_links_DS(provname):
     
     else:
         print("No se encontró data de la empresa")
-        return False
-
-
-# Función final para extraer los datos de los links a evaluar - DeepSeek (OpenRouter)
-def extract_data_links_DSOpen(provname):
-
-    # API Key de cuenta de DeepSeek (OpenRouter)
-    client = openai.OpenAI(api_key="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", base_url = "https://openrouter.ai/api/v1")
-
-    # Obtener 5 enlaces de proveedores
-    links_found = get_links_googleweb(provname)
-
-    # Utilizar los enlaces para obtener los textos respectivos
-    text_found = []
-    for link in links_found:
-        data_extracted = extract_text_web(link)
-        if data_extracted:
-            text_found.append(data_extracted)
-
-    if len(text_found) >= 1:
-        # Preparar los mensajes para la API de DeepSeek (OpenRouter)
-        messages = [
-            {"role": "system", "content": f"Necesito recopilar información de empresas para enriquecer una base de datos de proveedores. Voy a estar enviándote textos pertenecientes a las páginas webs de las empresas, y debes buscar por la siguiente información: Ubicación de la empresa, datos de contacto (teléfonos, emails), redes sociales, productos y servicios ofrecidos, certificaciones, casos de éxito o clientes destacados, además de otra información destacable que consideres pertinente añadir. Cuando termine de enviarte todos los textos de las páginas web disponibles de la empresa, voy a enviar la palabra 'Finalizar', una vez que te envíe esa palabra, tú debes de enviarme todos los datos recopilados fila por fila, es decir, en una fila solo se escriben los datos de un campo, en otra fila todo el siguiente campo, y así hasta finalizar con todos los datos solicitados. Importante, si en caso se detecta información contradictoria, igualmente indicar ambos datos en la linea, y en una última linea agregar un comentario como observación. Entonces, tu resultado final debe ser un texto con diversas lineas, y al inicio de cada linea colocar el nombre del campo correspondiente (usar el nombre exacto de estos campos, sin tildes y no poner en negrita ni añadir otro simbolo especial como '*'): 'Ubicacion', 'Datos de Contacto', 'Redes Sociales', 'Productos/Servicios', 'Certificaciones', 'Clientes/Casos de Exito', 'Otra Informacion', 'Observaciones/Contradicciones'. Debes de asegurarte de que los textos sean sobre la empresa deseada, ahora, la empresa objetivo es: {provname}."}
-        ]
-
-        # Añadir cada texto como un mensaje de usuario
-        for text in text_found:
-            messages.append({"role": "user", "content": text})
-
-        # Añadir el mensaje de finalización
-        messages.append({"role": "user", "content": "Finalizar"})
-
-        try:
-            # Llamar a la API de DeepSeek (Open Router)
-            response = client.chat.completions.create(
-                model="deepseek/deepseek-r1:free",
-                messages=messages
-            )
-
-            # Obtener la respuesta del modelo
-            result = response.choices[0].message.content  
-            print(result)
-            return result
-
-        except json.decoder.JSONDecodeError as e:
-            print(f"Error al decodificar la respuesta JSON: {e}")
-            return False
-        
-        except Exception as e: # Cuando se envian muchos tokens como input, dependiendo del modelo, podría dar error
-            print(f"Error inesperado: {e}")
-            return False
-    else:
-        print("No se encontró data disponible de la empresa")
         return False
 
 # Función para normalizar el output obtenido por la IA Gen
@@ -359,7 +320,7 @@ def normalize_data_IA_web(output_text, provname):
         return df
     
     except:
-        print("No hay un resultado valido para normalizar")
+        print(f"No hay un resultado valido para normalizar para {provname}")
         return pd.DataFrame()
 
 
@@ -381,9 +342,11 @@ def upload_key_data_web (key_data):
 
         # Se insertan datos en PostgreSQL
         key_data.to_sql(table_name, engine, if_exists="append", index=False)
-        print(f"Datos de {proveedor} subidos a PostgreSQL en la tabla: {table_name}")
+        return False # Sirve para contabilizar si se subió la data correctamente
+        #print(f"Datos de {proveedor} subidos a PostgreSQL en la tabla: {table_name}")
     else:
-        print("No hay data normalizada para subir a PostgreSQL")
+        print(f"No hay data normalizada para subir a PostgreSQL para {proveedor}")
+        return True
 
 # Función para exportar datos de tabla como csv
 def export_csv_web ():
@@ -398,13 +361,13 @@ def export_csv_web ():
 
     print("✅ Exportación completada: datos_exportados_web.csv")
 
-if __name__ == "__main__":
-    provname = input("Indicar nombre del proveedor para extrar datos de la web: ")
-    # Se obtiene la extracción de datos por la IA Gen
-    result = extract_data_links_openAI(provname)
+# if __name__ == "__main__":
+#     provname = input("Indicar nombre del proveedor para extrar datos de la web: ")
+#     # Se obtiene la extracción de datos por la IA Gen
+#     result = extract_data_links_openAI(provname)
     # Se normalizan esos datos y se retorna un dataframe con los valores clave
-    key_data = normalize_data_IA_web(result, provname)
-    # Se suben esos datos a Postgresql
-    upload_key_data_web(key_data)
+    # key_data = normalize_data_IA_web(result, provname)
+    # # Se suben esos datos a Postgresql
+    # upload_key_data_web(key_data)
     # # Exportación de datos
     # export_csv_web()
